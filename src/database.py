@@ -34,5 +34,3 @@ async def init_db():
     async with engine.begin() as conn:
         # Обязательно включаем расширение pgvector в PostgreSQL
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-        # Создаем таблицы, если их еще нет
-        await conn.run_sync(Base.metadata.create_all)
