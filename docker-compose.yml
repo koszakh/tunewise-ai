@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # Наша база данных с расширением pgvector
+  db:
+    image: ankane/pgvector:latest
+    container_name: tunewise_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: tunewise
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Брокер сообщений для Celery
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: tunewise_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672" # Админка RabbitMQ
+
+  # Кэш и бэкенд для результатов Celery
+  redis:
+    image: redis:7-alpine
+    container_name: tunewise_redis
+    ports:
+      - "6379:6379"
+
+  # Основной веб-сервер на FastAPI
+  web:
+    build: .
+    container_name: tunewise_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/tunewise
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  # Фоновый воркер Celery (использует тот же код и образ)
+  worker:
+    build: .
+    container_name: tunewise_worker
+    command: celery -A src.celery_app.celery worker --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/tunewise
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - rabbitmq
+      - db
+
+volumes:
+  pgdata:
