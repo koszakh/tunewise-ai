@@ -18,9 +18,12 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
 
     # Связь с плейлистами пользователя
     playlists: Mapped[list["Playlist"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
 
 
 class Track(Base):

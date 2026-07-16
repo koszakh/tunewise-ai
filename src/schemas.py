@@ -1,6 +1,19 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
+# ==========================================
+# Схемы для аутентификации (Токены)
+# ==========================================
+
+class Token(BaseModel):
+    """Схема ответа при успешном логине"""
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    """Схема для извлечения данных из токена"""
+    username: str | None = None
+
 # --- СХЕМЫ ПОЛЬЗОВАТЕЛЯ (USER) ---
 
 class UserBase(BaseModel):
@@ -8,7 +21,12 @@ class UserBase(BaseModel):
     email: str = Field(..., json_schema_extra={"example": "john@example.com"})
 
 class UserCreate(UserBase):
-    pass
+    # Пароль нужен только при создании пользователя: в ответ API он не попадает.
+    password: str = Field(
+        ...,
+        min_length=8,
+        json_schema_extra={"example": "secure_password_123"},
+    )
 
 class UserResponse(UserBase):
     id: int

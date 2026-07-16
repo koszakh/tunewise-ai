@@ -6,6 +6,12 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
     OPENAI_API_KEY: str = "mock-key"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    SECRET_KEY: str = "default_secret_key"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = "30"
+
+    class Config:
+        env_file = ".env"
+
 
 settings = Settings()

@@ -14,6 +14,17 @@ from src.schemas import (
 from src.services.ai_service import ai_service
 from src.tasks import generate_playlist_ai_summary_task
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from src.database import get_db
+from src.models import User
+from src.schemas import UserCreate, UserResponse, Token  # Не забудьте обновить Pydantic схемы!
+from src.security import get_password_hash, verify_password, create_access_token
+from src.dependencies import get_current_user
+
 # Инициализируем FastAPI приложение
 app = FastAPI(
     title="TuneWise AI API",
@@ -45,6 +56,46 @@ async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db))
     await db.commit()
     await db.refresh(new_user)
     return new_user
+
+
+@app.post("/register", response_model=UserResponse)
+async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+    # Проверяем, есть ли уже такой юзер
+    query = select(User).where((User.username == user_data.username) | (User.email == user_data.email))
+    result = await db.execute(query)
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Имя пользователя или email уже заняты")
+
+    # Создаем нового с захэшированным паролем
+    hashed_password = get_password_hash(user_data.password)
+    new_user = User(
+        username=user_data.username,
+        email=user_data.email,
+        hashed_password=hashed_password
+    )
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
+
+
+@app.post("/login", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+    # OAuth2PasswordRequestForm ожидает поля username и password
+    query = select(User).where(User.username == form_data.username)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Неверное имя пользователя или пароль",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Генерируем токен
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 # --- ЭНДПОИНТЫ ТРЕКОВ & ИИ-ВЕКТОРИЗАЦИЯ ---
@@ -91,8 +142,10 @@ async def semantic_search(search_data: SemanticSearchRequest, db: AsyncSession =
 # --- ЭНДПОИНТЫ ПЛЕЙЛИСТОВ & CELERY ---
 
 @app.post("/playlists", response_model=PlaylistResponse, status_code=status.HTTP_201_CREATED)
-async def create_playlist(playlist_data: PlaylistCreate, db: AsyncSession = Depends(get_db)):
+async def create_playlist(playlist_data: PlaylistCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     # 1. Проверяем существование пользователя
+    print(f"Плейлист создает пользователь: {current_user.username}")
+
     user = await db.get(User, playlist_data.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
