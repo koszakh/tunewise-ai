@@ -10,7 +10,9 @@ def main():
     # 1. Если .env нет, но есть .env.example — копируем его
     if not env_path.exists():
         if example_path.exists():
-            env_path.write_text(example_path.read_text(encoding="utf-8"), encoding="utf-8")
+            env_path.write_text(
+                example_path.read_text(encoding="utf-8"), encoding="utf-8"
+            )
             print("📝 Создан файл .env на основе .env.example")
         else:
             env_path.touch()

@@ -1,5 +1,6 @@
 # src/tasks.py
 import asyncio
+
 from src.celery_app import celery
 from src.database import SessionLocal  # Теперь этот импорт работает!
 from src.models import Playlist
@@ -30,10 +31,9 @@ async def async_generate_summary(playlist_id: int):
             return
 
         # Формируем описание треков для ИИ
-        tracks_info = "\n".join([
-            f"- {t.artist} — {t.title} ({t.description})"
-            for t in playlist.tracks
-        ])
+        tracks_info = "\n".join(
+            [f"- {t.artist} — {t.title} ({t.description})" for t in playlist.tracks]
+        )
 
         try:
             # Запрашиваем генерацию у OpenRouter

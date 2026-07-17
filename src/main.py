@@ -1,35 +1,31 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
-
-from src.database import get_db, init_db
-from src.models import User, Track, Playlist
-from src.schemas import (
-    UserCreate, UserResponse,
-    TrackCreate, TrackResponse,
-    PlaylistCreate, PlaylistResponse,
-    SemanticSearchRequest
-)
-from src.services.ai_service import ai_service
-from src.tasks import generate_playlist_ai_summary_task
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.database import get_db
-from src.models import User
-from src.schemas import UserCreate, UserResponse, Token  # Не забудьте обновить Pydantic схемы!
-from src.security import get_password_hash, verify_password, create_access_token
+from src.database import get_db, init_db
 from src.dependencies import get_current_user
+from src.models import Playlist, Track, User
+from src.schemas import (
+    PlaylistCreate,
+    PlaylistResponse,
+    SemanticSearchRequest,
+    Token,  # Не забудьте обновить Pydantic схемы!
+    TrackCreate,
+    TrackResponse,
+    UserCreate,
+    UserResponse,
+)
+from src.security import create_access_token, get_password_hash, verify_password
+from src.services.ai_service import ai_service
+from src.tasks import generate_playlist_ai_summary_task
 
 # Инициализируем FastAPI приложение
 app = FastAPI(
     title="TuneWise AI API",
     description="Умный музыкальный бэкенд с семантическим поиском и генерацией AI-обзоров плейлистов",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 
@@ -42,14 +38,19 @@ async def on_startup():
 
 # --- ЭНДПОИНТЫ ПОЛЬЗОВАТЕЛЕЙ (CRUD) ---
 
+
 @app.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     # Проверяем уникальность username и email
     existing_user = await db.execute(
-        select(User).filter((User.username == user_data.username) | (User.email == user_data.email))
+        select(User).filter(
+            (User.username == user_data.username) | (User.email == user_data.email)
+        )
     )
     if existing_user.scalars().first():
-        raise HTTPException(status_code=400, detail="Username or email already registered")
+        raise HTTPException(
+            status_code=400, detail="Username or email already registered"
+        )
 
     new_user = User(**user_data.model_dump())
     db.add(new_user)
@@ -61,17 +62,21 @@ async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db))
 @app.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     # Проверяем, есть ли уже такой юзер
-    query = select(User).where((User.username == user_data.username) | (User.email == user_data.email))
+    query = select(User).where(
+        (User.username == user_data.username) | (User.email == user_data.email)
+    )
     result = await db.execute(query)
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Имя пользователя или email уже заняты")
+        raise HTTPException(
+            status_code=400, detail="Имя пользователя или email уже заняты"
+        )
 
     # Создаем нового с захэшированным паролем
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
         username=user_data.username,
         email=user_data.email,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
     )
     db.add(new_user)
     await db.commit()
@@ -80,7 +85,9 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @app.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
+):
     # OAuth2PasswordRequestForm ожидает поля username и password
     query = select(User).where(User.username == form_data.username)
     result = await db.execute(query)
@@ -100,6 +107,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
 
 # --- ЭНДПОИНТЫ ТРЕКОВ & ИИ-ВЕКТОРИЗАЦИЯ ---
 
+
 @app.post("/tracks", response_model=TrackResponse, status_code=status.HTTP_201_CREATED)
 async def create_track(track_data: TrackCreate, db: AsyncSession = Depends(get_db)):
     # 1. Обращаемся к AI-сервису, чтобы преобразовать текстовое описание в вектор (embedding)
@@ -111,7 +119,7 @@ async def create_track(track_data: TrackCreate, db: AsyncSession = Depends(get_d
         artist=track_data.artist,
         genre=track_data.genre,
         description=track_data.description,
-        embedding=embedding_vector
+        embedding=embedding_vector,
     )
     db.add(new_track)
     await db.commit()
@@ -121,8 +129,11 @@ async def create_track(track_data: TrackCreate, db: AsyncSession = Depends(get_d
 
 # --- СЕМАНТИЧЕСКИЙ ПОИСК (PGVECTOR) ---
 
-@app.post("/tracks/search", response_model=List[TrackResponse])
-async def semantic_search(search_data: SemanticSearchRequest, db: AsyncSession = Depends(get_db)):
+
+@app.post("/tracks/search", response_model=list[TrackResponse])
+async def semantic_search(
+    search_data: SemanticSearchRequest, db: AsyncSession = Depends(get_db)
+):
     # 1. Векторизуем поисковый запрос пользователя (например, "грустный рок для поездки")
     query_vector = await ai_service.get_embedding(search_data.query)
 
@@ -141,8 +152,15 @@ async def semantic_search(search_data: SemanticSearchRequest, db: AsyncSession =
 
 # --- ЭНДПОИНТЫ ПЛЕЙЛИСТОВ & CELERY ---
 
-@app.post("/playlists", response_model=PlaylistResponse, status_code=status.HTTP_201_CREATED)
-async def create_playlist(playlist_data: PlaylistCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+
+@app.post(
+    "/playlists", response_model=PlaylistResponse, status_code=status.HTTP_201_CREATED
+)
+async def create_playlist(
+    playlist_data: PlaylistCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     # 1. Проверяем существование пользователя
     print(f"Плейлист создает пользователь: {current_user.username}")
 
@@ -151,16 +169,16 @@ async def create_playlist(playlist_data: PlaylistCreate, db: AsyncSession = Depe
         raise HTTPException(status_code=404, detail="User not found")
 
     # 2. Выгружаем треки по переданному списку ID
-    result = await db.execute(select(Track).filter(Track.id.in_(playlist_data.track_ids)))
+    result = await db.execute(
+        select(Track).filter(Track.id.in_(playlist_data.track_ids))
+    )
     tracks = result.scalars().all()
     if len(tracks) != len(playlist_data.track_ids):
         raise HTTPException(status_code=400, detail="Some track IDs are invalid")
 
     # 3. Создаем плейлист (поле ai_summary пока остается пустым/None)
     new_playlist = Playlist(
-        title=playlist_data.title,
-        user_id=playlist_data.user_id,
-        tracks=tracks
+        title=playlist_data.title, user_id=playlist_data.user_id, tracks=tracks
     )
 
     db.add(new_playlist)
@@ -179,9 +197,7 @@ async def create_playlist(playlist_data: PlaylistCreate, db: AsyncSession = Depe
 @app.get("/playlists/{playlist_id}", response_model=PlaylistResponse)
 async def get_playlist(playlist_id: int, db: AsyncSession = Depends(get_db)):
     # Получаем плейлист по ID
-    result = await db.execute(
-        select(Playlist).filter(Playlist.id == playlist_id)
-    )
+    result = await db.execute(select(Playlist).filter(Playlist.id == playlist_id))
     playlist = result.scalars().first()
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist not found")
