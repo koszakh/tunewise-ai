@@ -1,0 +1,25 @@
+# Максимальная длина строки
+line-length = 88
+
+# Версия Python
+target-version = "py311"
+
+[lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # Pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # bugbear
+    "SIM", # simplify
+]
+
+ignore = [
+    "E501", # длину строки контролирует formatter
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true

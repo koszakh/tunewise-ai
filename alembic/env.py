@@ -6,11 +6,10 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-
 from src.config import settings
 from src.database import Base
+
 # ВАЖНО: Импортируй ВСЕ свои модели здесь, чтобы Alembic увидел их таблицы!
-from src.models import User, Track, Playlist  # укажи свои реальные модели
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

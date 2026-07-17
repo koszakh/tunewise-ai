@@ -9,7 +9,7 @@ async def test_register_user_success(client: AsyncClient):
     payload = {
         "username": "testtester",
         "email": "tester@example.com",
-        "password": "supersecurepassword123"
+        "password": "supersecurepassword123",
     }
     response = await client.post("/register", json=payload)
 
@@ -27,7 +27,7 @@ async def test_register_duplicate_username(client: AsyncClient):
     payload = {
         "username": "duplicate_user",
         "email": "first@example.com",
-        "password": "password123"
+        "password": "password123",
     }
     # Первый раз — ок
     await client.post("/register", json=payload)
@@ -47,15 +47,12 @@ async def test_login_success(client: AsyncClient):
     register_payload = {
         "username": "login_user",
         "email": "login@example.com",
-        "password": "correct_password"
+        "password": "correct_password",
     }
     await client.post("/register", json=register_payload)
 
     # 2. Пытаемся войти (OAuth2PasswordRequestForm ожидает x-www-form-urlencoded данные)
-    login_payload = {
-        "username": "login_user",
-        "password": "correct_password"
-    }
+    login_payload = {"username": "login_user", "password": "correct_password"}
     response = await client.post("/login", data=login_payload)
 
     assert response.status_code == 200
@@ -70,14 +67,11 @@ async def test_login_wrong_password(client: AsyncClient):
     register_payload = {
         "username": "wrong_pass_user",
         "email": "wrong_pass@example.com",
-        "password": "correct_password"
+        "password": "correct_password",
     }
     await client.post("/register", json=register_payload)
 
-    login_payload = {
-        "username": "wrong_pass_user",
-        "password": "incorrect_password"
-    }
+    login_payload = {"username": "wrong_pass_user", "password": "incorrect_password"}
     response = await client.post("/login", data=login_payload)
 
     assert response.status_code == 401

@@ -1,6 +1,7 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
 from src.config import settings
 
 # 1. Создаем асинхронный движок для работы с PostgreSQL
@@ -17,9 +18,11 @@ SessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
+
 # 3. Базовый класс для всех моделей базы данных
 class Base(DeclarativeBase):
     pass
+
 
 # 4. Зависимость (Dependency) для FastAPI эндпоинтов
 async def get_db():
@@ -28,6 +31,7 @@ async def get_db():
             yield session
         finally:
             await session.close()
+
 
 # 5. Функция автоматической инициализации базы данных при старте
 async def init_db():

@@ -1,14 +1,25 @@
-from sqlalchemy import String, Integer, ForeignKey, Table, Column
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
+from sqlalchemy import Column, ForeignKey, Integer, String, Table
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from src.database import Base
 
 # Промежуточная таблица для связи Многие-ко-Многим между Playlists и Tracks
 playlist_track = Table(
     "playlist_track",
     Base.metadata,
-    Column("playlist_id", Integer, ForeignKey("playlists.id", ondelete="CASCADE"), primary_key=True),
-    Column("track_id", Integer, ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "playlist_id",
+        Integer,
+        ForeignKey("playlists.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "track_id",
+        Integer,
+        ForeignKey("tracks.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
 )
 
 
@@ -21,9 +32,9 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
 
     # Связь с плейлистами пользователя
-    playlists: Mapped[list["Playlist"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-
-
+    playlists: Mapped[list["Playlist"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Track(Base):
@@ -57,7 +68,9 @@ class Playlist(Base):
     # AI-сгенерированное саммари/обзор для этого плейлиста (задача для Celery)
     ai_summary: Mapped[str] = mapped_column(String(2000), nullable=True)
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
 
     # Связи
     user: Mapped["User"] = relationship(back_populates="playlists")

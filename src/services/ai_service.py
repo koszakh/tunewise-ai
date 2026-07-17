@@ -1,5 +1,6 @@
 import logging
-from openai import AsyncOpenAI, APIStatusError
+
+from openai import APIStatusError, AsyncOpenAI
 
 from src.config import settings
 
@@ -15,7 +16,7 @@ class AIService:
             default_headers={
                 "HTTP-Referer": "https://tunewise.ai",
                 "X-Title": "TuneWise AI",
-            }
+            },
         )
 
     def _get_mock_embedding(self, text: str) -> list[float]:
@@ -26,11 +27,20 @@ class AIService:
         text_lower = text.lower()
         vector = [0.0] * 1536
 
-        if any(w in text_lower for w in ["груст", "дожд", "window", "rain", "acoustic", "акустик", "гитар"]):
+        if any(
+            w in text_lower
+            for w in ["груст", "дожд", "window", "rain", "acoustic", "акустик", "гитар"]
+        ):
             vector[0] = 1.0  # Ось грусти
-        elif any(w in text_lower for w in ["неон", "drive", "поездк", "машин", "авто", "retro", "80"]):
+        elif any(
+            w in text_lower
+            for w in ["неон", "drive", "поездк", "машин", "авто", "retro", "80"]
+        ):
             vector[1] = 1.0  # Ось поездки/ретро
-        elif any(w in text_lower for w in ["спорт", "тренир", "techno", "агрессив", "adrenaline"]):
+        elif any(
+            w in text_lower
+            for w in ["спорт", "тренир", "techno", "агрессив", "adrenaline"]
+        ):
             vector[2] = 1.0  # Ось спорта/энергии
         else:
             vector[3] = 1.0  # Дефолтная ось
@@ -47,8 +57,7 @@ class AIService:
 
         try:
             response = await self.client.embeddings.create(
-                model="openai/text-embedding-3-small",
-                input=text
+                model="openai/text-embedding-3-small", input=text
             )
             return response.data[0].embedding
         except APIStatusError as e:
@@ -83,9 +92,12 @@ class AIService:
             response = await self.client.chat.completions.create(
                 model="openrouter/free",
                 messages=[
-                    {"role": "system", "content": "Ты музыкальный критик. Пишешь краткие, сочные и стильные обзоры."},
-                    {"role": "user", "content": prompt}
-                ]
+                    {
+                        "role": "system",
+                        "content": "Ты музыкальный критик. Пишешь краткие, сочные и стильные обзоры.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
             )
             return response.choices[0].message.content
         except Exception as e:

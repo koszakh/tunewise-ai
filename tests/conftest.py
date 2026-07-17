@@ -1,12 +1,13 @@
 import asyncio
-import pytest
-from typing import AsyncGenerator
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from collections.abc import AsyncGenerator
 
-from src.main import app
-from src.database import Base, get_db
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from src.config import settings
+from src.database import Base, get_db
+from src.main import app
 
 # 1. Используем отдельную тестовую базу данных
 # Заменяем имя базы в конце URL на "test_db"
@@ -15,9 +16,7 @@ TEST_DATABASE_URL = settings.DATABASE_URL.replace("/tunewise", "/test_db")
 # Создаем тестовый асинхронный движок
 test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestingSessionLocal = async_sessionmaker(
-    bind=test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+    bind=test_engine, class_=AsyncSession, expire_on_commit=False
 )
 
 
@@ -35,6 +34,7 @@ async def prepare_database():
     async with test_engine.begin() as conn:
         # Убедимся, что расширение pgvector включено в тестовой БД
         from sqlalchemy import text
+
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
 
         # Создаем таблицы
@@ -70,14 +70,18 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_db] = _override_get_db
 
     # Используем ASGITransport для вызова эндпоинтов напрямую в коде без реальных сетевых запросов
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
 
     # Сбрасываем переопределение зависимостей после теста
     app.dependency_overrides.clear()
 
+
 @pytest.fixture(autouse=True)
 def disable_celery_queues():
     """Заставляет Celery выполнять все задачи синхронно во время тестов"""
     from src.celery_app import celery
+
     celery.conf.update(task_always_eager=True)
