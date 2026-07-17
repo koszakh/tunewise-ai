@@ -88,7 +88,7 @@ tunewise-ai/
 │
 ├── .env.example
 ├── alembic.ini
-├── compose.local.yml
+├── docker-compose.yml
 ├── Dockerfile
 ├── generate_key.py
 ├── pytest.ini
@@ -130,7 +130,7 @@ python generate_key.py
 Или внутри Docker:
 
 ```bash
-docker compose -f compose.local.yml run --rm api python generate_key.py
+docker compose -f docker-compose.yml run --rm api python generate_key.py
 ```
 
 Скрипт:
@@ -143,7 +143,7 @@ docker compose -f compose.local.yml run --rm api python generate_key.py
 ## 2. Сборка и запуск контейнеров
 
 ```bash
-docker compose -f compose.local.yml up -d --build
+docker compose -f docker-compose.yml up -d --build
 ```
 
 ---
@@ -151,7 +151,7 @@ docker compose -f compose.local.yml up -d --build
 ## 3. Применение миграций
 
 ```bash
-docker compose -f compose.local.yml run --rm api alembic upgrade head
+docker compose -f docker-compose.yml run --rm api alembic upgrade head
 ```
 
 После запуска приложение будет доступно по адресам:
@@ -218,7 +218,7 @@ async def create_playlist(
 ## Создание новой миграции
 
 ```bash
-docker compose -f compose.local.yml run --rm api \
+docker compose -f docker-compose.yml run --rm api \
     alembic revision --autogenerate -m "Add new field to model"
 ```
 
@@ -227,7 +227,7 @@ docker compose -f compose.local.yml run --rm api \
 ## Применение миграций
 
 ```bash
-docker compose -f compose.local.yml run --rm api alembic upgrade head
+docker compose -f docker-compose.yml run --rm api alembic upgrade head
 ```
 
 ---
@@ -235,7 +235,7 @@ docker compose -f compose.local.yml run --rm api alembic upgrade head
 ## Откат на одну миграцию
 
 ```bash
-docker compose -f compose.local.yml run --rm api alembic downgrade -1
+docker compose -f docker-compose.yml run --rm api alembic downgrade -1
 ```
 
 ---
@@ -247,7 +247,7 @@ docker compose -f compose.local.yml run --rm api alembic downgrade -1
 ## Создание тестовой базы (один раз)
 
 ```bash
-docker compose -f compose.local.yml exec db \
+docker compose -f docker-compose.yml exec db \
     psql -U postgres -c "CREATE DATABASE test_db;"
 ```
 
@@ -256,7 +256,7 @@ docker compose -f compose.local.yml exec db \
 ## Запуск тестов
 
 ```bash
-docker compose -f compose.local.yml run --rm api pytest -v
+docker compose -f docker-compose.yml run --rm api pytest -v
 ```
 
 Во время тестирования Celery автоматически переводится в режим
@@ -266,3 +266,19 @@ task_always_eager = True
 ```
 
 что позволяет выполнять фоновые задачи синхронно без обращения к RabbitMQ.
+
+## 📊 Мониторинг фоновых задач (Flower)
+
+Для мониторинга очередей RabbitMQ и задач Celery используется Flower.
+
+После запуска проекта веб-интерфейс доступен по адресу:
+
+http://localhost:5555
+
+Flower позволяет:
+
+- отслеживать активные и завершенные задачи;
+- просматривать историю выполнения;
+- контролировать состояние Celery Worker;
+- анализировать очередь задач;
+- отслеживать ошибки выполнения.
