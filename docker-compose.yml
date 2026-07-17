@@ -69,5 +69,21 @@ services:
       - rabbitmq
       - db
 
+  flower:
+    build: .
+    container_name: tunewise_flower
+    command: >
+      celery -A src.celery_app.celery flower
+      --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - rabbitmq
+      - redis
+      - worker
+
 volumes:
   pgdata:
